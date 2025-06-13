@@ -1,7 +1,10 @@
 ﻿using CRM_AutoFlow.Application.DTOs;
+using CRM_AutoFlow.Application.Helper;
 using CRM_AutoFlow.Domain.Interfaces;
+using CRM_AutoFlow.Domain.Models;
 using CRM_AutoFlow.Infrastructure.Persistence;
 using CRM_AutoFlow.Presentation.Extensions;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
 namespace CRM_AutoFlow.Infrastructure.Services
@@ -14,11 +17,29 @@ namespace CRM_AutoFlow.Infrastructure.Services
         {
             _context = context;
         }
-
-        public Task AddTestDrive(TestDriveDTO testDriveDto)
+  
+        public async Task<Result<Guid>> AddTestDrive(TestDriveDTO testDriveDto)
         {
-            throw new NotImplementedException();
+            var testDrive = testDriveDto.ToEntity();
+            await _context.TestDrives.AddAsync(testDrive);
+            await _context.SaveChangesAsync();
+            return Result<Guid>.Ok(testDrive.Id);
         }
+
+
+        public async Task UpdateEmployeeTestDrive(Guid testDriveId, Guid employeeId)
+        {
+
+            TestDrive testDrive = await _context.TestDrives.FindAsync(testDriveId);
+            if (testDrive == null)
+            {
+                throw new InvalidOperationException($"Test drive with ID {testDriveId} not found");
+            }
+            testDrive.EmployeedId = employeeId;
+            testDrive.Status = TestDriveStatus.INITIAL;
+            await _context.SaveChangesAsync();
+        }
+
 
         public async Task<List<DateTime>> GetAvailableDaysAsync(Guid carId)
         {
@@ -136,6 +157,37 @@ namespace CRM_AutoFlow.Infrastructure.Services
                 time.Minute,
                 time.Second,
                 DateTimeKind.Utc); // <-- Важно: указываем DateTimeKind.Utc
+        }
+
+        public async Task<List<TestDriveDTO>> GetAllTestDrive()
+        {
+            // 1. Получаем текущее время в UTC и добавляем +3 часа, чтобы получить "время по Москве"
+            var nowUtc = DateTime.UtcNow;
+            var nowMsk = nowUtc.AddHours(3); // Имитируем московское время
+
+            // 2. Запрашиваем данные из БД — PlannedDate хранится как MSK
+            var testDrives = await _context.TestDrives
+                .Where(t => t.Status != TestDriveStatus.CANCELED &&
+                            t.PlannedDate >= nowMsk && // PlannedDate — это MSK
+                            t.PlannedDate <= nowMsk.AddDays(365))
+                .OrderBy(t => t.PlannedDate)
+                .ToListAsync();
+
+            if (!testDrives.Any())
+                return new List<TestDriveDTO>();
+
+            // 3. Конвертируем MSK → UTC для DTO (для отправки клиенту)
+            var testDrivesListDto = testDrives.Select(t => new TestDriveDTO
+            {
+                Id = t.Id,
+                ClientId = t.ClientId,
+                Status = t.Status,
+                PlannedDate = t.PlannedDate, // MSK → UTC
+                CarId = t.CarId,
+                EmployeeId = t.EmployeedId
+            }).ToList();
+
+            return testDrivesListDto;
         }
     }
 }
