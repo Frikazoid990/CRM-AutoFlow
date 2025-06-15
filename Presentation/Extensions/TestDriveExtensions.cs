@@ -5,7 +5,7 @@ namespace CRM_AutoFlow.Presentation.Extensions
 {
     public static class TestDriveExtensions
     {
-        public static TestDrive ToEntity(this TestDriveDTO dto)
+        public static TestDrive ToEntity(this CreateTestDriveDTO dto)
         {
             if (dto == null)
                 throw new ArgumentNullException(nameof(dto));

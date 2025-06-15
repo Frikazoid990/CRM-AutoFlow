@@ -18,7 +18,7 @@ namespace CRM_AutoFlow.Infrastructure.Services
             _context = context;
         }
   
-        public async Task<Result<Guid>> AddTestDrive(TestDriveDTO testDriveDto)
+        public async Task<Result<Guid>> AddTestDrive(CreateTestDriveDTO testDriveDto)
         {
             var testDrive = testDriveDto.ToEntity();
             await _context.TestDrives.AddAsync(testDrive);
@@ -27,7 +27,7 @@ namespace CRM_AutoFlow.Infrastructure.Services
         }
 
 
-        public async Task UpdateEmployeeTestDrive(Guid testDriveId, Guid employeeId)
+        public async Task UpdateWithEmployeeTestDrive(Guid testDriveId, Guid employeeId)
         {
 
             TestDrive testDrive = await _context.TestDrives.FindAsync(testDriveId);
@@ -159,7 +159,7 @@ namespace CRM_AutoFlow.Infrastructure.Services
                 DateTimeKind.Utc); // <-- Важно: указываем DateTimeKind.Utc
         }
 
-        public async Task<List<TestDriveDTO>> GetAllTestDrive()
+        public async Task<List<ResponseTestDriveDTO>> GetAllTestDrive()
         {
             // 1. Получаем текущее время в UTC и добавляем +3 часа, чтобы получить "время по Москве"
             var nowUtc = DateTime.UtcNow;
@@ -170,21 +170,37 @@ namespace CRM_AutoFlow.Infrastructure.Services
                 .Where(t => t.Status != TestDriveStatus.CANCELED &&
                             t.PlannedDate >= nowMsk && // PlannedDate — это MSK
                             t.PlannedDate <= nowMsk.AddDays(365))
+                .Include(td => td.Car)
+                .Include(td => td.Client)
+                .Include(td => td.Employee)
                 .OrderBy(t => t.PlannedDate)
                 .ToListAsync();
 
             if (!testDrives.Any())
-                return new List<TestDriveDTO>();
-
+                return new List<ResponseTestDriveDTO>();
             // 3. Конвертируем MSK → UTC для DTO (для отправки клиенту)
-            var testDrivesListDto = testDrives.Select(t => new TestDriveDTO
+            var testDrivesListDto = testDrives.Select(t => new ResponseTestDriveDTO
             {
                 Id = t.Id,
-                ClientId = t.ClientId,
-                Status = t.Status,
+                Status = t.Status.GetDescription(),
                 PlannedDate = t.PlannedDate, // MSK → UTC
-                CarId = t.CarId,
-                EmployeeId = t.EmployeedId
+                Car = new CarShortInfoDTO
+                {
+                    Id = t.Id,
+                    Brand = t.Car.Brand,
+                    Model = t.Car.Model,
+                },
+                Employee = t.Employee == null ? null : new EmployeeShortInfoDTO
+                {
+                    Id = t.Id,
+                    FullName = t.Employee.FullName,
+                },
+                Client = new ClientShortInfoDTO
+                {
+                    Id = t.Client.Id,
+                    FullName = t.Client.FullName,
+                    PhoneNumber = t.Client.PhoneNumber,
+                },
             }).ToList();
 
             return testDrivesListDto;

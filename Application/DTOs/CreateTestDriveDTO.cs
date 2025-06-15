@@ -1,6 +1,6 @@
 ﻿namespace CRM_AutoFlow.Application.DTOs
 {
-    public class TestDriveDTO
+    public class CreateTestDriveDTO
     {
         public Guid Id { get; set; }
 

@@ -26,6 +26,8 @@ builder.Services.AddScoped<IPhoneNumber,PhoneNumberService>();
 builder.Services.AddScoped<ICarRepository, CarService>();
 builder.Services.AddScoped<IPassword, PasswordService>();
 builder.Services.AddScoped<UserService>();
+builder.Services.AddScoped<IStatusService, StatusService>();
+builder.Services.AddScoped<IManagerService, ManagerService>();
 builder.Services.AddSingleton<ITokenService, TokenService>();
 //
 builder.Services.AddAuthorization(); //Добавление в сервис авторизацию

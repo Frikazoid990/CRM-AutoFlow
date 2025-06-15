@@ -18,6 +18,7 @@ namespace CRM_AutoFlow.Presentation.Controllers
         {
             _testDriveService = testDriveService;
         }
+
         [HttpGet("get-test-drives")]
         public async Task<IActionResult> GetAllTestDrives() 
         {
@@ -28,14 +29,15 @@ namespace CRM_AutoFlow.Presentation.Controllers
             }
             return Ok(result);
         }
+
         [HttpPatch("test-drive-update/{testDriveId}")]
         public async Task UpdateTestDrive([FromRoute] Guid testDriveId, [FromBody]  Guid employeeId)
         {
-            await _testDriveService.UpdateEmployeeTestDrive(testDriveId, employeeId);
+            await _testDriveService.UpdateWithEmployeeTestDrive(testDriveId, employeeId);
         }
 
         [HttpPost("add-test-drive")]
-        public async Task<IActionResult> AddTestDrive([FromBody] TestDriveDTO testDriveDto)
+        public async Task<IActionResult> AddTestDrive([FromBody] CreateTestDriveDTO testDriveDto)
         {
             var result = await _testDriveService.AddTestDrive(testDriveDto);
             return Ok(result.Data);

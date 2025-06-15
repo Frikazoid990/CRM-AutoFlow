@@ -23,7 +23,6 @@ namespace CRM_AutoFlow.Domain.Models
         //Навигационные св-ва
         public User Client {  get; set; }
         public User Employee { get; set; }
-
         public Car Car {  get; set; }
 
     }

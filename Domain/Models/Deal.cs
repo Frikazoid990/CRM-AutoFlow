@@ -16,7 +16,7 @@ namespace CRM_AutoFlow.Domain.Models
         [Required]
         public decimal Price { get; set; }
         [Required]
-        public DealStatus Status { get; set; } = DealStatus.INITIAL;
+        public DealStatus Status { get; set; } = DealStatus.NOTASSIGNED;
         [Required]
         public bool IsCancelled { get; set; } = false;
         [Required]
