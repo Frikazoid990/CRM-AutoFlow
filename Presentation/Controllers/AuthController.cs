@@ -39,7 +39,15 @@ namespace FormRegJWTAndDB.Controllers
             var result = await _userService.SignInUser(phoneNumber, password);
             if (!result.Success)
                 return Unauthorized(new { Error = result.Error});
-            return Ok(new { access_token = result.Data});
+
+            Response.Cookies.Append("access_token", result.Data, new CookieOptions
+            {
+                Secure = false,   // Передавать только по HTTPS (в продакшене)
+                SameSite = SameSiteMode.Strict, // Защита от CSRF
+                Expires = DateTimeOffset.UtcNow.AddDays(7) // Срок действия
+            });
+
+            return Ok(new { message = "Authentication successful" });
         }
     }
 }

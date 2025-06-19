@@ -8,8 +8,8 @@ namespace CRM_AutoFlow.Domain.Models
         public int Id { get; set; }
         [Required]
         public Guid ClientId { get; set; }
+        public Guid? EmployeeId { get; set; }
         [Required]
-        public Guid EmployeeId { get; set; }
         public string Title { get; set; }
         [Required]
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

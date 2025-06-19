@@ -21,9 +21,9 @@ namespace FormRegJWTAndDB.Auth
         {
             var claims = new List<Claim>
             {
-                new Claim("Id", user.Id.ToString()),
+                new Claim("id", user.Id.ToString()),
                 new Claim(ClaimTypes.Name, user.FullName),
-                new Claim("PhoneNumber", user.PhoneNumber),
+                new Claim("phoneNumber", user.PhoneNumber),
                 new Claim(ClaimTypes.Role, user.Role.ToString())
             };
 

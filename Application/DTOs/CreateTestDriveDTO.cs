@@ -8,12 +8,9 @@
 
         public Guid CarId { get; set; }
 
-        public Guid? EmployeeId { get; set; }
-
         public DateTime PlannedDate { get; set; }
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
-        public TestDriveStatus Status { get; set; } = TestDriveStatus.NOTASSIGNED;
     }
 }

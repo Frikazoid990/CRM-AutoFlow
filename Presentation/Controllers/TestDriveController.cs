@@ -19,6 +19,7 @@ namespace CRM_AutoFlow.Presentation.Controllers
             _testDriveService = testDriveService;
         }
 
+        /// for employees or high staff
         [HttpGet("get-test-drives")]
         public async Task<IActionResult> GetAllTestDrives() 
         {
@@ -29,13 +30,37 @@ namespace CRM_AutoFlow.Presentation.Controllers
             }
             return Ok(result);
         }
-
-        [HttpPatch("test-drive-update/{testDriveId}")]
-        public async Task UpdateTestDrive([FromRoute] Guid testDriveId, [FromBody]  Guid employeeId)
+        [HttpGet("get-test-drives-for-manager/{managerId}")]
+        public async Task<IActionResult> GetTestDrivesForManager(Guid managerId)
+        {
+            var result = await _testDriveService.GetTestDriveForManager(managerId);
+            return Ok(result);
+        }
+        [HttpPatch("test-drive-update-employee/{testDriveId}")]
+        public async Task<IActionResult> UpdateWithEmployeeTestDrive([FromRoute] Guid testDriveId, [FromBody]  Guid employeeId)
         {
             await _testDriveService.UpdateWithEmployeeTestDrive(testDriveId, employeeId);
+            return Ok($"Test drive {testDriveId} is update");
         }
-
+        [HttpPatch("test-drive-update-status/{testDriveId}")]
+        public async Task<IActionResult> UpdateWithStatusTestDrive([FromRoute] Guid testDriveId, [FromBody] TestDriveStatus status)
+        {
+            await _testDriveService.UpdateWithStatusTestDrive(testDriveId, status);
+            return Ok($"Test drive {testDriveId} is update");
+        }
+        ///for all users, who authorize
+        [HttpGet("get-test-drives-for-client/{clientId}")]
+        public async Task<IActionResult> GetTestDrivesForClient(Guid clientId)
+        {
+            var result = await _testDriveService.GetTestDriveForClient(clientId);
+            return Ok(result);
+        }
+        [HttpGet("get-test-drive/{testDriveId}")]
+        public async Task<IActionResult> GetTestDrive([FromRoute] Guid testDriveId)
+        {
+            var result = await _testDriveService.GetTestDrive(testDriveId);
+            return Ok(result);
+        }
         [HttpPost("add-test-drive")]
         public async Task<IActionResult> AddTestDrive([FromBody] CreateTestDriveDTO testDriveDto)
         {

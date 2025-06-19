@@ -3,7 +3,7 @@ using System.Reflection;
 
 public enum TestDriveStatus
 {
-    [Description("Не назначен")]
+    [Description("Менеджер не назначен")]
     NOTASSIGNED,
     [Description("В процессе")]
     INITIAL,

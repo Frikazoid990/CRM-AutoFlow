@@ -1,5 +1,6 @@
 using CRM_AutoFlow.API.Configurations;
 using CRM_AutoFlow.Domain.Interfaces;
+using CRM_AutoFlow.Infrastructure.Hubs;
 using CRM_AutoFlow.Infrastructure.Persistence;
 using CRM_AutoFlow.Infrastructure.Services;
 using CRM_AutoFlow.Infrastructure.Services.PasswordService;
@@ -7,8 +8,6 @@ using Form_Registration_App.Services;
 using FormRegJWTAndDB.Auth;
 using FormRegJWTAndDB.Interfaces;
 using Microsoft.EntityFrameworkCore;
-using Swashbuckle.AspNetCore.SwaggerUI;
-using static System.Net.Mime.MediaTypeNames;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -18,11 +17,16 @@ builder.Services
     .AddCustomAuthConfiguration(builder.Configuration)
     .AddCustomSwagger()
     .AddCorsPolitics()
-    .AddControllers(); // Добавление контроллеров
+    .AddControllers();// Добавление контроллеров
+
+builder.Services.AddSignalR(); // add signalR for chat
 
 //Добавление сторонних сервисов
+builder.Services.AddScoped<IMessageService, MessageService>();
+builder.Services.AddScoped<IDealService, DealService>();
+builder.Services.AddScoped<IChatService, ChatService>();
 builder.Services.AddScoped<ITestDrive, TestDriveService>();
-builder.Services.AddScoped<IPhoneNumber,PhoneNumberService>();
+builder.Services.AddScoped<IPhoneNumber, PhoneNumberService>();
 builder.Services.AddScoped<ICarRepository, CarService>();
 builder.Services.AddScoped<IPassword, PasswordService>();
 builder.Services.AddScoped<UserService>();
@@ -46,6 +50,6 @@ app.UseAuthorization(); //Использование авторизации
 app.UseSwagger();
 app.UseSwaggerUI();
 app.MapControllers();
-
+app.MapHub<ChatHub>("chat");
 //Запуск приложения
 app.Run();

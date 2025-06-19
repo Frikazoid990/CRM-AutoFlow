@@ -4,6 +4,7 @@ using CRM_AutoFlow.Domain.Interfaces;
 using CRM_AutoFlow.Domain.Models;
 using CRM_AutoFlow.Infrastructure.Persistence;
 using CRM_AutoFlow.Presentation.Extensions;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -26,7 +27,6 @@ namespace CRM_AutoFlow.Infrastructure.Services
             return Result<Guid>.Ok(testDrive.Id);
         }
 
-
         public async Task UpdateWithEmployeeTestDrive(Guid testDriveId, Guid employeeId)
         {
 
@@ -40,6 +40,17 @@ namespace CRM_AutoFlow.Infrastructure.Services
             await _context.SaveChangesAsync();
         }
 
+        public async Task UpdateWithStatusTestDrive(Guid testDriveId, TestDriveStatus status)
+        {
+
+            TestDrive testDrive = await _context.TestDrives.FindAsync(testDriveId);
+            if (testDrive == null)
+            {
+                throw new InvalidOperationException($"Test drive with ID {testDriveId} not found");
+            }
+            testDrive.Status = status;
+            await _context.SaveChangesAsync();
+        }
 
         public async Task<List<DateTime>> GetAvailableDaysAsync(Guid carId)
         {
@@ -184,23 +195,100 @@ namespace CRM_AutoFlow.Infrastructure.Services
                 Id = t.Id,
                 Status = t.Status.GetDescription(),
                 PlannedDate = t.PlannedDate, // MSK → UTC
-                Car = new CarShortInfoDTO
-                {
-                    Id = t.Id,
-                    Brand = t.Car.Brand,
-                    Model = t.Car.Model,
-                },
-                Employee = t.Employee == null ? null : new EmployeeShortInfoDTO
-                {
-                    Id = t.Id,
-                    FullName = t.Employee.FullName,
-                },
-                Client = new ClientShortInfoDTO
-                {
-                    Id = t.Client.Id,
-                    FullName = t.Client.FullName,
-                    PhoneNumber = t.Client.PhoneNumber,
-                },
+                Car = t.Car.toShortInfo(),
+                Client = t.Client.toClientShortInfo(),
+                Employee = t.Employee?.toEmployeeShortInfo(),
+            }).ToList();
+
+            return testDrivesListDto;
+        }
+
+        public async Task<ResponseTestDriveDTO> GetTestDrive(Guid testDriveId)
+        {
+            var testDrive = await _context.TestDrives
+                .Where(t => t.Id == testDriveId)
+                .Include(t => t.Car)          
+                .Include(t => t.Client)       
+                .Include(t => t.Employee)     
+                .FirstOrDefaultAsync();
+            if(testDrive == null)
+            {
+                throw new InvalidOperationException($"Test drive with ID {testDriveId} not found");
+            }
+            return new ResponseTestDriveDTO
+            {
+                Id = testDrive.Id,
+                Status = testDrive.Status.GetDescription(),
+                PlannedDate = testDrive.PlannedDate,
+                Car = testDrive.Car.toShortInfo(),
+                Client = testDrive.Client.toClientShortInfo(),
+                Employee = testDrive.Employee?.toEmployeeShortInfo(),
+            };
+        }
+
+        public async Task<List<ResponseTestDriveDTO>> GetTestDriveForClient(Guid clientId)
+        {
+            // 1. Получаем текущее время в UTC и добавляем +3 часа, чтобы получить "время по Москве"
+            var nowUtc = DateTime.UtcNow;
+            var nowMsk = nowUtc.AddHours(3); // Имитируем московское время
+
+            // 2. Запрашиваем данные из БД — PlannedDate хранится как MSK
+            var testDrives = await _context.TestDrives
+                .Where(t => t.Status != TestDriveStatus.CANCELED &&
+                            t.PlannedDate >= nowMsk && // PlannedDate — это MSK
+                            t.PlannedDate <= nowMsk.AddDays(365)
+                            && t.ClientId == clientId)
+                .Include(td => td.Car)
+                .Include(td => td.Client)
+                .Include(td => td.Employee)
+                .OrderBy(t => t.PlannedDate)
+                .ToListAsync();
+
+            if (!testDrives.Any())
+                return new List<ResponseTestDriveDTO>();
+            // 3. Конвертируем MSK → UTC для DTO (для отправки клиенту)
+            var testDrivesListDto = testDrives.Select(t => new ResponseTestDriveDTO
+            {
+                Id = t.Id,
+                Status = t.Status.GetDescription(),
+                PlannedDate = t.PlannedDate, // MSK → UTC
+                Car = t.Car.toShortInfo(),
+                Client = t.Client.toClientShortInfo(),
+                Employee = t.Employee?.toEmployeeShortInfo(),
+            }).ToList();
+
+            return testDrivesListDto;
+        }
+
+        public async Task<List<ResponseTestDriveDTO>> GetTestDriveForManager(Guid managerId)
+        {
+            // 1. Получаем текущее время в UTC и добавляем +3 часа, чтобы получить "время по Москве"
+            var nowUtc = DateTime.UtcNow;
+            var nowMsk = nowUtc.AddHours(3); // Имитируем московское время
+
+            // 2. Запрашиваем данные из БД — PlannedDate хранится как MSK
+            var testDrives = await _context.TestDrives
+                .Where(t => t.Status != TestDriveStatus.CANCELED &&
+                            t.PlannedDate >= nowMsk && // PlannedDate — это MSK
+                            t.PlannedDate <= nowMsk.AddDays(365)
+                            && t.EmployeedId == managerId)
+                .Include(td => td.Car)
+                .Include(td => td.Client)
+                .Include(td => td.Employee)
+                .OrderBy(t => t.PlannedDate)
+                .ToListAsync();
+
+            if (!testDrives.Any())
+                return new List<ResponseTestDriveDTO>();
+            // 3. Конвертируем MSK → UTC для DTO (для отправки клиенту)
+            var testDrivesListDto = testDrives.Select(t => new ResponseTestDriveDTO
+            {
+                Id = t.Id,
+                Status = t.Status.GetDescription(),
+                PlannedDate = t.PlannedDate, // MSK → UTC
+                Car = t.Car.toShortInfo(),
+                Client = t.Client.toClientShortInfo(),
+                Employee = t.Employee?.toEmployeeShortInfo(),
             }).ToList();
 
             return testDrivesListDto;

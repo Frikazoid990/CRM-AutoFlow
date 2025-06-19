@@ -2,7 +2,7 @@
 
 public enum DealStatus
 {
-    [Description("Не назначена")]
+    [Description("Менеджер не назначен")]
     NOTASSIGNED,
     [Description("Новая")]
     NEW,

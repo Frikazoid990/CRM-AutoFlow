@@ -24,6 +24,10 @@ namespace CRM_AutoFlow.Domain.Models
         [Required]
         public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
         public DateTime? ResolvedAt { get; set; }
+        [Required]
+        public string SelectedConfiguration { get; set; }
+        [Required]
+        public string ConfigurationDetailsJson { get; set; }
 
         // Навигационные свойства
         public User Client { get; set; }
