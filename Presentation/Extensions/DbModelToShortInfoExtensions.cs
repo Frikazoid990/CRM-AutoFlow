@@ -7,15 +7,20 @@ namespace CRM_AutoFlow.Presentation.Extensions
     {
         public static CarShortInfoDTO toShortInfo(this Car car)
         {
+            if (car == null) 
+                return null;
             return new CarShortInfoDTO
             {
                 Id = car.Id,
                 Brand = car.Brand,
                 Model = car.Model,
+                ImgPath = car.ImgPath,
             };
         }
         public static EmployeeShortInfoDTO toEmployeeShortInfo(this User user)
         {
+            if (user == null)
+                return null;
             return new EmployeeShortInfoDTO 
             {
                 Id = user.Id,
@@ -24,6 +29,8 @@ namespace CRM_AutoFlow.Presentation.Extensions
         }
         public static ClientShortInfoDTO toClientShortInfo(this User user)
         {
+            if (user == null)
+                return null;
             return new ClientShortInfoDTO
             {
                 Id = user.Id,

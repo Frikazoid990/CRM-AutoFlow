@@ -14,7 +14,6 @@ namespace CRM_AutoFlow.Presentation.Extensions
                 ClientId = dto.ClientId,
                 CarId = dto.CarId,
                 PlannedDate = dto.PlannedDate,
-                CreatedAt = dto.CreatedAt,
             };
         }
     }

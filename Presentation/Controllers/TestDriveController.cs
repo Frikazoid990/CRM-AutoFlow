@@ -50,7 +50,7 @@ namespace CRM_AutoFlow.Presentation.Controllers
         }
         ///for all users, who authorize
         [HttpGet("get-test-drives-for-client/{clientId}")]
-        public async Task<IActionResult> GetTestDrivesForClient(Guid clientId)
+        public async Task<IActionResult> GetTestDrivesForClient([FromRoute] Guid clientId)
         {
             var result = await _testDriveService.GetTestDriveForClient(clientId);
             return Ok(result);
@@ -74,7 +74,6 @@ namespace CRM_AutoFlow.Presentation.Controllers
             var days = await _testDriveService.GetAvailableDaysAsync(carId);
             return Ok(days);
         }
-
         [HttpGet("available-slots")]
         public async Task<IActionResult> GetAvailableSlots([FromQuery] Guid carId, [FromQuery] DateOnly date)
         {

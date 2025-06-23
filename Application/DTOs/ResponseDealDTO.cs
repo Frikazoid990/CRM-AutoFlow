@@ -1,4 +1,6 @@
-﻿namespace CRM_AutoFlow.Application.DTOs
+﻿using CRM_AutoFlow.Application.DTOs;
+
+namespace CRM_AutoFlow.Application.DTOs
 {
     public class ResponseDealDTO
     {
@@ -14,7 +16,7 @@
 
         public string SelectedConfiguration { get; set; }
 
-        public Dictionary<string,string> SelectedOptions { get; set; }
+        public SelectedOptionsDTO SelectedOptions { get; set; }
 
         public CarShortInfoDTO Car { get; set; }
 
@@ -22,5 +24,12 @@
 
         public EmployeeShortInfoDTO? Employee { get; set; }
 
+
     }
+}
+
+public class SelectedOptionsDTO
+{
+    public List<string> Engine { get; set; }
+    public List<CarColor> Color { get; set; }
 }

@@ -16,6 +16,8 @@ namespace CRM_AutoFlow.Presentation.Extensions
                 Brand = carDto.Brand,
                 Model = carDto.Model,
                 ConfigurationsJson = JsonSerializer.Serialize(carDto.Configurations),
+                Description = carDto.Description,
+                ImgPath = carDto.ImgPath,
             };
             
         }

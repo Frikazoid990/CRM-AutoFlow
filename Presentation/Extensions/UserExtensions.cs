@@ -23,7 +23,7 @@ namespace CRM_AutoFlow.Presentation.Extensions
                 FullName = dto.FullName,
                 PhoneNumber = dto.PhoneNumber,
                 PasswordHash = passwordHasher.HashPassword(dto.Password),
-                Role = dto.Role,
+                Role = Role.CLIENT,
             };
         }
 

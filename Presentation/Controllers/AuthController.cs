@@ -1,4 +1,5 @@
 ﻿using CRM_AutoFlow.Application.DTOs;
+using CRM_AutoFlow.Domain.Interfaces;
 using Form_Registration_App.Services;
 using FormRegJWTAndDB.Interfaces;
 using Microsoft.AspNetCore.Authorization;
@@ -29,7 +30,20 @@ namespace FormRegJWTAndDB.Controllers
             var result = await _userService.AddUser(user);
             if (!result.Success)
                 return BadRequest(new {Error = result.Error });
-            return Ok(result.Data);
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+            var result1 = await _userService.SignInUser(user.PhoneNumber, user.Password);
+            if (!result1.Success)
+                return Unauthorized(new { Error = result.Error });
+
+            Response.Cookies.Append("access_token", result1.Data, new CookieOptions
+            {
+                Secure = false,   // Передавать только по HTTPS (в продакшене)
+                SameSite = SameSiteMode.Strict, // Защита от CSRF
+                Expires = DateTimeOffset.UtcNow.AddDays(7), // Срок действия
+                 Path = "/" // Это ключевое изменение - куки будут доступны на всех путях
+            });
+            return Ok(new { message = "Authentication successful" });
         }
         [HttpPost("signin")]
         public async Task<IActionResult> UserSignIn([FromForm] string phoneNumber,  [FromForm]string password)
@@ -42,12 +56,15 @@ namespace FormRegJWTAndDB.Controllers
 
             Response.Cookies.Append("access_token", result.Data, new CookieOptions
             {
-                Secure = false,   // Передавать только по HTTPS (в продакшене)
-                SameSite = SameSiteMode.Strict, // Защита от CSRF
-                Expires = DateTimeOffset.UtcNow.AddDays(7) // Срок действия
+                HttpOnly = false,
+                Secure = true,   // Передавать только по HTTPS (в продакшене)
+                Expires = DateTimeOffset.UtcNow.AddDays(7), // Срок действия
+                SameSite = SameSiteMode.None,
+                Domain = "localhost",
+                //Path = "/" // Это ключевое изменение - куки будут доступны на всех путях
             });
-
             return Ok(new { message = "Authentication successful" });
+
         }
     }
 }

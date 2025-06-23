@@ -22,6 +22,14 @@ namespace CRM_AutoFlow.Infrastructure.Persistence.ConfigurationsModelsToDb
             builder.Property(c => c.ConfigurationsJson)
                 .IsRequired()
                 .HasMaxLength(4000);
+
+            builder.Property(c => c.ImgPath)
+                .IsRequired()
+                .HasMaxLength(400);
+
+            builder.Property(c => c.Description)
+                .IsRequired()
+                .HasMaxLength(4000);
             ///Связь
             builder.HasMany(c => c.Deals)
                 .WithOne(d=>d.Car)

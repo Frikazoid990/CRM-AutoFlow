@@ -8,5 +8,6 @@ namespace CRM_AutoFlow.Domain.Interfaces
     {
         public Task<IEnumerable> GetAllCars();
         public Task<Result<Guid>> AddCar(CarDTO carDto);
+
     }
 }

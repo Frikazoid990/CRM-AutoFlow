@@ -13,7 +13,11 @@ namespace CRM_AutoFlow.Domain.Models
         [Required]
         public string Model { get; set; }
         [Required]
-        public string ConfigurationsJson { get; set; } = string.Empty;
+        public string ConfigurationsJson { get; set; }
+        [Required]
+        public string ImgPath { get; set; }
+        [Required]
+        public string Description { get; set; }
 
         public ICollection<Deal> Deals { get; set; } = new List<Deal>();
         public ICollection<TestDrive> TestDrives { get; set; } = new List<TestDrive>();

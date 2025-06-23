@@ -5,8 +5,12 @@ using CRM_AutoFlow.Infrastructure.Persistence;
 using CRM_AutoFlow.Presentation.Extensions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.ObjectPool;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using System;
 using System.Linq;
+using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -16,70 +20,137 @@ namespace CRM_AutoFlow.Infrastructure.Services
     {
         private readonly AppDbContext _context;
         private readonly IChatService _chatService;
-        public DealService(AppDbContext context, IChatService chatService)
+        private readonly ICarRepository _carRepository;
+        public DealService(AppDbContext context, IChatService chatService, ICarRepository carRepository)
         {
             _context = context;
             _chatService = chatService;
+            _carRepository = carRepository;
         }
 
-        public async Task<Guid> AddDeal(CreateDealDTO dealDto)
+        public async Task<Guid> AddDeal(CreateDealDTO dto)
         {
+            // Проверка клиента
             var client = await _context.Users
                 .Include(c => c.ClientDeals)
-                .FirstOrDefaultAsync(c => c.Id == dealDto.ClientId);
-            if (client == null)
-            {
-                throw new ArgumentException("Client not found");
-            }
-            var hasActiveDeals = client.ClientDeals.Any(d =>
-                d.Status != DealStatus.COMPLETED && !d.IsCancelled);
-            if (hasActiveDeals)
-            {
-                throw new ArgumentException("The client already has an active deal");
-            }
+                .FirstOrDefaultAsync(c => c.Id == dto.ClientId);
 
-            var car = await _context.Cars.FindAsync(dealDto.CarId);
+            if (client == null) throw new ArgumentException("Client not found");
+
+            if (client.ClientDeals.Any(d => !d.IsCancelled && d.Status != DealStatus.COMPLETED))
+                throw new ArgumentException("Client already has active deal");
+
+            var car = await _context.Cars
+            .FirstOrDefaultAsync(c => c.Id == dto.CarId);
+
             if (car == null)
+                throw new Exception("Car not found");
+
+            // Десериализуем JSON конфигурации
+            var configurations = JsonConvert.DeserializeObject<Dictionary<string, JToken>>(car.ConfigurationsJson);
+            if (!configurations.ContainsKey(dto.SelectedConfiguration))
+                throw new Exception("Configuration not found");
+
+            // Получаем объект выбранной конфигурации
+            if (!configurations.TryGetValue(dto.SelectedConfiguration, out var configToken))
             {
-                throw new ArgumentException("Car not found");
+                throw new Exception("Configuration not found");
             }
 
-            var configurations = JsonSerializer.Deserialize<Dictionary<string, Dictionary<string, List<string>>>>(car.ConfigurationsJson);
-
-            if (!configurations.ContainsKey(dealDto.SelectedConfiguration))
-                throw new ArgumentException("Invalid configuration selected");
-
-            var configDetails = configurations[dealDto.SelectedConfiguration];
-
-
-            foreach (var option in dealDto.SelectedOptions)
+            if (configToken.Type != JTokenType.Object)
             {
-                // Проверяем наличие ключа
-                if (!configDetails.ContainsKey(option.Key))
-                    throw new ArgumentException($"Option {option.Key} not available");
-
-                // Проверяем наличие значения в списке
-                if (!configDetails[option.Key].Contains(option.Value))
-                    throw new ArgumentException($"Invalid {option.Value} for {option.Key}");
+                throw new Exception($"Configuration '{dto.SelectedConfiguration}' is not an object. It's a {configToken.Type}");
             }
 
-            int ChatId = await _chatService.CreateChatAsync(dealDto.ClientId);
+            var selectedConfig = (JObject)configToken;
+            var configDict = selectedConfig.Properties()
+    .ToDictionary(p => p.Name.ToLower(), p => p.Value);
+            // Извлекаем цену
+            decimal price = configDict["price"]?.ToObject<decimal>() ?? 0;
+
+            // Здесь можно добавить логику подсчёта цены по выбранным опциям
+            // Например, если цвет или двигатель влияют на цену
+            // Но в текущих данных этого нет, поэтому просто проверяем, что опции валидны
+
+            ValidateOptions(configDict, dto.SelectedOptions);
+
+            foreach (var key in dto.SelectedOptions.Keys)
+            {
+                var values = dto.SelectedOptions[key];
+
+                for (int i = 0; i < values.Length; i++)
+                {
+                    if (values[i] is JsonElement element)
+                    {
+                        // Делаем полную десериализацию элемента в объект или строку
+                        values[i] = JsonConvert.DeserializeObject(element.GetRawText());
+                    }
+                }
+            }
+
+            int ChatId = await _chatService.CreateChatAsync(dto.ClientId);
+
             var deal = new Deal
             {
-                ClientId = dealDto.ClientId,
-                CarId = dealDto.CarId,
+                Id = Guid.NewGuid(),
+                ClientId = dto.ClientId,
+                CarId = dto.CarId,
                 ChatId = ChatId,
+                Price = price,
                 Status = DealStatus.NOTASSIGNED,
-                Price = decimal.Parse(configDetails["Price"].First()),
-                SelectedConfiguration = dealDto.SelectedConfiguration,
-                ConfigurationDetailsJson = JsonSerializer.Serialize( new
-                {
-                    dealDto.SelectedOptions
-                })
+                SelectedConfiguration = dto.SelectedConfiguration,
+                ConfigurationDetailsJson = JsonConvert.SerializeObject(dto.SelectedOptions),
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
             };
+
             _context.Deals.Add(deal);
             await _context.SaveChangesAsync();
-            return (deal.Id);
+            return deal.Id;
+        }
+
+        private void ValidateOptions(Dictionary<string, JToken> configDict, Dictionary<string, object[]> options)
+        {
+            foreach (var option in options)
+            {
+                var keyLower = option.Key.ToLower();
+
+                if (!configDict.TryGetValue(keyLower, out var token))
+                    throw new Exception($"Unknown configuration property: {option.Key}");
+
+                if (token is JArray array)
+                {
+                    foreach (var value in option.Value)
+                    {
+                        // Для цвета: десериализуем DTO в CarColor
+                        if (option.Key.ToLower() == "color")
+                        {
+                            var colorDto = JsonConvert.DeserializeObject<CarColor>(value.ToString());
+
+                            bool exists = array
+                                .Select(jt => jt.ToObject<CarColor>())
+                                .Any(c => c.Name == colorDto.Name && c.Hex == colorDto.Hex);
+
+                            if (!exists)
+                                throw new Exception($"Invalid option selected for {option.Key}: {value}");
+                        }
+
+                        // Для двигателей: просто строка
+                        else if (option.Key.ToLower() == "engine")
+                        {
+                            var engineStr = value.ToString();
+                            if (!array.Any(jt => jt.ToString() == engineStr))
+                                throw new Exception($"Invalid option selected for {option.Key}: {engineStr}");
+                        }
+
+                        // Другие поля по аналогии
+                    }
+                }
+                else
+                {
+                    throw new Exception($"Configuration property '{option.Key}' is not an array.");
+                }
+            }
         }
 
         public async Task<List<ResponseDealDTO>> GetAllDeals()
@@ -87,28 +158,82 @@ namespace CRM_AutoFlow.Infrastructure.Services
             var deals = await _context.Deals
                 .Where(d => d.IsCancelled == false)
                 .Include(d => d.Car)
-                .Include (d => d.Client)
+                .Include(d => d.Client)
                 .Include(d => d.Employee)
                 .ToListAsync();
-             
+
             if (!deals.Any())
                 return new List<ResponseDealDTO>();
 
-            var dealDto = deals.Select(d => new ResponseDealDTO
+            var dealDto = deals.Select(d =>
             {
-                Id = d.Id,
-                CreatedAt = d.CreatedAt,
-                IsCancelled = d.IsCancelled,
-                Price = d.Price,
-                Status = d.Status.GetDescription(),
-                SelectedConfiguration = d.SelectedConfiguration,
-                SelectedOptions = JsonSerializer.Deserialize<Dictionary<string, Dictionary<string, string>>>(d.ConfigurationDetailsJson)?
-                    .GetValueOrDefault("SelectedOptions")
-                ?? new Dictionary<string, string>(),
-                Car = d.Car.toShortInfo(),
-                Client = d.Client.toClientShortInfo(),
-                Employee = d.Employee.toEmployeeShortInfo(),
+                var selectedOptions = JsonConvert.DeserializeObject<Dictionary<string, object[]>>(d.ConfigurationDetailsJson);
+
+                return new ResponseDealDTO
+                {
+                    Id = d.Id,
+                    CreatedAt = d.CreatedAt,
+                    IsCancelled = d.IsCancelled,
+                    Price = d.Price,
+                    Status = d.Status.GetDescription(),
+                    SelectedConfiguration = d.SelectedConfiguration,
+
+                    SelectedOptions = new SelectedOptionsDTO
+                    {
+                        Engine = selectedOptions.GetValueOrDefault("engine")?
+                            .Select(e => e.ToString())
+                            .ToList(),
+
+                        Color = selectedOptions.GetValueOrDefault("color")?
+                            .Select(c => JsonConvert.DeserializeObject<CarColor>(c.ToString()))
+                            .ToList()
+                    },
+
+                    Car = d.Car.toShortInfo(),
+                    Client = d.Client.toClientShortInfo(),
+                    Employee = d.Employee?.toEmployeeShortInfo(),
+                };
             }).ToList();
+
+            return dealDto;
+        }
+
+        public async Task<ResponseDealDTO> GetDealForCliet(Guid clientId)
+        {
+            var deal = await _context.Deals
+                .Where(d => d.ClientId == clientId
+                            && !d.IsCancelled
+                            && d.Status != DealStatus.COMPLETED)
+                .Include(d => d.Car)
+                .Include(d => d.Client)
+                .Include(d => d.Employee)
+                .FirstOrDefaultAsync();
+            if (deal == null)
+                throw new ArgumentException("Deal not found");
+            var selectedOptions = JsonConvert.DeserializeObject<Dictionary<string, object[]>>(deal.ConfigurationDetailsJson);
+
+            var dealDto = new ResponseDealDTO
+            {
+                Id = deal.Id,
+                CreatedAt = deal.CreatedAt,
+                IsCancelled = deal.IsCancelled,
+                Price = deal.Price,
+                SelectedOptions = new SelectedOptionsDTO
+                {
+                    Engine = selectedOptions.GetValueOrDefault("engine")?
+                            .Select(e => e.ToString())
+                            .ToList(),
+
+                    Color = selectedOptions.GetValueOrDefault("color")?
+                            .Select(c => JsonConvert.DeserializeObject<CarColor>(c.ToString()))
+                            .ToList()
+                },
+                SelectedConfiguration = deal.SelectedConfiguration,
+                Status = deal.Status.GetDescription(),
+                Car = deal.Car.toShortInfo(),
+                Client = deal.Client.toClientShortInfo(),
+                Employee = deal.Employee.toEmployeeShortInfo(),
+            };
 
             return dealDto;
         }
@@ -151,7 +276,7 @@ namespace CRM_AutoFlow.Infrastructure.Services
             var deal = await _context.Deals.FindAsync(dealId);
             if (deal == null)
                 throw new ArgumentException("Deal not found");
-            if(deal.IsCancelled)
+            if (deal.IsCancelled)
                 deal.IsCancelled = false;
             else
                 deal.IsCancelled = true;

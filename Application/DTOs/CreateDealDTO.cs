@@ -7,6 +7,8 @@ namespace CRM_AutoFlow.Application.DTOs
         public Guid ClientId { get; set; }
         public Guid CarId { get; set; }
         public string SelectedConfiguration { get; set; }
-        public Dictionary<string, string> SelectedOptions { get; set; }
+        public Dictionary<string, object[]> SelectedOptions { get; set; }
     }
+
+
 }

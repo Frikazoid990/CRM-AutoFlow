@@ -27,10 +27,13 @@ namespace CRM_AutoFlow.Infrastructure.Services
                     Id = u.Id,
                     Brand = u.Brand,
                     Model = u.Model,
-                    Configurations = JsonSerializer.Deserialize<Dictionary<string, Dictionary<string, string[]>>>(u.ConfigurationsJson)
+                    Configurations = JsonSerializer.Deserialize< Dictionary<string, CarConfiguration>>(u.ConfigurationsJson),
+                    ImgPath = u.ImgPath,
+                    Description = u.Description
                 };
                 return car;
                 });
+            
 
             return result;
         }
@@ -42,5 +45,6 @@ namespace CRM_AutoFlow.Infrastructure.Services
             await _context.SaveChangesAsync();
             return Result<Guid>.Ok(car.Id);
         }
+
     }
 }

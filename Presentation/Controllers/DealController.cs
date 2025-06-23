@@ -55,6 +55,12 @@ namespace CRM_AutoFlow.Presentation.Controllers
             var result = await _dealService.GetAllDeals();
             return Ok(result);
         }
+        [HttpGet("get-deal-for-client/{clientId}")]
+        public async Task<IActionResult> GetDealForClient([FromRoute] Guid clientId)
+        {
+            var result = await _dealService.GetDealForCliet(clientId);
+            return Ok(result);
+        } 
 
     }
 }

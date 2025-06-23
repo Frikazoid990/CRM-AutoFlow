@@ -43,7 +43,9 @@ namespace Form_Registration_App.Services
 
         public async Task<Result<Guid>> AddUser(UserDTO userDto)
         {
-            if(!_phoneNumber.isValidRussianPhoneNumber(userDto.PhoneNumber))
+            var phoneNumber = _phoneNumber.CorrectPhoneNumberToDB(userDto.PhoneNumber);
+            userDto.PhoneNumber = phoneNumber;
+            if (!_phoneNumber.isValidRussianPhoneNumber(userDto.PhoneNumber))
                 return Result<Guid>.Fail("Invalid phone number.");
             if (userDto is null)
                 return Result<Guid>.Fail("User is null.");

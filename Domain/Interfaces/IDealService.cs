@@ -13,5 +13,7 @@ namespace CRM_AutoFlow.Domain.Interfaces
         public Task<List<ResponseDealDTO>> GetAllDeals();
 
         public Task UpdateWithIsCanceled(Guid dealId);
+
+        public Task<ResponseDealDTO> GetDealForCliet(Guid clientId);
     }
 }

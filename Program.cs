@@ -26,6 +26,7 @@ builder.Services.AddScoped<IMessageService, MessageService>();
 builder.Services.AddScoped<IDealService, DealService>();
 builder.Services.AddScoped<IChatService, ChatService>();
 builder.Services.AddScoped<ITestDrive, TestDriveService>();
+builder.Services.AddScoped<ClassterDb>();
 builder.Services.AddScoped<IPhoneNumber, PhoneNumberService>();
 builder.Services.AddScoped<ICarRepository, CarService>();
 builder.Services.AddScoped<IPassword, PasswordService>();
@@ -42,6 +43,23 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 
 //Конфигурация приложения
 var app = builder.Build();
+using (var scope = app.Services.CreateScope())
+{
+    var services = scope.ServiceProvider;
+    try
+    {
+        var classterDb = services.GetRequiredService<ClassterDb>();
+        await classterDb.CreateData(); // Вызываем ваш метод
+        Console.WriteLine("Данные успешно созданы!");
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Ошибка при создании данных: {ex.Message}");
+    }
+}
+
+
+
 app.UseCors("AllowFrontend"); //Включение CORS политики 
 
 app.UseAuthentication(); //Использование аутонтефикации
@@ -52,4 +70,6 @@ app.UseSwaggerUI();
 app.MapControllers();
 app.MapHub<ChatHub>("chat");
 //Запуск приложения
+
 app.Run();
+
