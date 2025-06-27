@@ -26,5 +26,7 @@ namespace CRM_AutoFlow.Infrastructure.Services
             }).ToList();
             return staffDto;
         }
+
+        public async Task<StatsManagerDto> 
     }
 }

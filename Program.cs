@@ -11,7 +11,6 @@ using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
-
 // Add services to the container.
 builder.Services
     .AddCustomAuthConfiguration(builder.Configuration)
@@ -27,7 +26,7 @@ builder.Services.AddScoped<IDealService, DealService>();
 builder.Services.AddScoped<IChatService, ChatService>();
 builder.Services.AddScoped<ITestDrive, TestDriveService>();
 builder.Services.AddScoped<ClassterDb>();
-builder.Services.AddScoped<IPhoneNumber, PhoneNumberService>();
+builder.Services.AddScoped<IPhoneNumber, PhoneNumberService>(); 
 builder.Services.AddScoped<ICarRepository, CarService>();
 builder.Services.AddScoped<IPassword, PasswordService>();
 builder.Services.AddScoped<UserService>();
@@ -43,6 +42,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 
 //Конфигурация приложения
 var app = builder.Build();
+
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
@@ -57,8 +57,6 @@ using (var scope = app.Services.CreateScope())
         Console.WriteLine($"Ошибка при создании данных: {ex.Message}");
     }
 }
-
-
 
 app.UseCors("AllowFrontend"); //Включение CORS политики 
 

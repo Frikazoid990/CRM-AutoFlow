@@ -22,6 +22,22 @@ namespace FormRegJWTAndDB.Controllers
             _tokenService = tokenService;
         }
 
+        [HttpPost("logout")]
+        public IActionResult Logout()
+        {
+            Response.Cookies.Append("access_token", string.Empty, new CookieOptions
+            {
+                HttpOnly = false,
+                Secure = true, // Убедитесь, что это соответствует вашей конфигурации
+                SameSite = SameSiteMode.None, // или Strict/Lax — зависит от настроек
+                Expires = DateTimeOffset.UtcNow.AddHours(-1), // прошедшая дата для удаления
+                Path = "/" // важно, чтобы совпадало с путём, где была установлена кука
+            });
+
+            return Ok(new { message = "Logged out successfully" });
+        }
+
+
         [HttpPost ("registration")]
         public async Task<IActionResult> RegistrationUser([FromBody] UserDTO user)
         {
@@ -32,6 +48,7 @@ namespace FormRegJWTAndDB.Controllers
                 return BadRequest(new {Error = result.Error });
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
+
             var result1 = await _userService.SignInUser(user.PhoneNumber, user.Password);
             if (!result1.Success)
                 return Unauthorized(new { Error = result.Error });

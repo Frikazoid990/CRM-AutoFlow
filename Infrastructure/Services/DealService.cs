@@ -156,44 +156,21 @@ namespace CRM_AutoFlow.Infrastructure.Services
         public async Task<List<ResponseDealDTO>> GetAllDeals()
         {
             var deals = await _context.Deals
-                .Where(d => d.IsCancelled == false)
+                        .Where(d =>
+            d.IsCancelled == false &&
+            d.Status == DealStatus.COMPLETED &&
+            (DateTime.UtcNow - d.UpdatedAt) < TimeSpan.FromDays(14)
+        )
                 .Include(d => d.Car)
                 .Include(d => d.Client)
                 .Include(d => d.Employee)
+                .OrderBy(d => d.CreatedAt)
                 .ToListAsync();
 
             if (!deals.Any())
                 return new List<ResponseDealDTO>();
 
-            var dealDto = deals.Select(d =>
-            {
-                var selectedOptions = JsonConvert.DeserializeObject<Dictionary<string, object[]>>(d.ConfigurationDetailsJson);
-
-                return new ResponseDealDTO
-                {
-                    Id = d.Id,
-                    CreatedAt = d.CreatedAt,
-                    IsCancelled = d.IsCancelled,
-                    Price = d.Price,
-                    Status = d.Status.GetDescription(),
-                    SelectedConfiguration = d.SelectedConfiguration,
-
-                    SelectedOptions = new SelectedOptionsDTO
-                    {
-                        Engine = selectedOptions.GetValueOrDefault("engine")?
-                            .Select(e => e.ToString())
-                            .ToList(),
-
-                        Color = selectedOptions.GetValueOrDefault("color")?
-                            .Select(c => JsonConvert.DeserializeObject<CarColor>(c.ToString()))
-                            .ToList()
-                    },
-
-                    Car = d.Car.toShortInfo(),
-                    Client = d.Client.toClientShortInfo(),
-                    Employee = d.Employee?.toEmployeeShortInfo(),
-                };
-            }).ToList();
+            var dealDto = deals.ToResponseDealDtoInList();
 
             return dealDto;
         }
@@ -209,7 +186,7 @@ namespace CRM_AutoFlow.Infrastructure.Services
                 .Include(d => d.Employee)
                 .FirstOrDefaultAsync();
             if (deal == null)
-                throw new ArgumentException("Deal not found");
+                return null;
             var selectedOptions = JsonConvert.DeserializeObject<Dictionary<string, object[]>>(deal.ConfigurationDetailsJson);
 
             var dealDto = new ResponseDealDTO
@@ -266,6 +243,8 @@ namespace CRM_AutoFlow.Infrastructure.Services
             {
                 throw new ArgumentException("Deal not found");
             }
+            if (status.Equals(DealStatus.COMPLETED))
+                deal.ResolvedAt = DateTime.UtcNow;
             deal.Status = status;
             deal.UpdatedAt = DateTime.UtcNow;
             await _context.SaveChangesAsync();
@@ -281,6 +260,46 @@ namespace CRM_AutoFlow.Infrastructure.Services
             else
                 deal.IsCancelled = true;
             await _context.SaveChangesAsync();
+        }
+
+        public async Task<List<ResponseDealDTO>> GetAllIsCanceledDeal()
+        {
+            var deals = await _context.Deals
+                .Where(d => d.IsCancelled == true)
+                .Include(d => d.Car)
+                .Include(d => d.Client)
+                .Include(d => d.Employee)
+                .OrderBy(d => d.CreatedAt)
+                .ToListAsync();
+
+
+            if (!deals.Any())
+                return new List<ResponseDealDTO>();
+            var dealsDto = deals.ToResponseDealDtoInList();
+            return dealsDto;
+        }
+
+        public async Task<List<ResponseDealDTO>> GetAllDealsForCurrentManager(Guid managerId)
+        {
+            var deals = await _context.Deals
+                .Where(d =>
+                d.EmployeeId == managerId &&
+                d.IsCancelled == false &&
+                d.Status == DealStatus.COMPLETED &&
+                (DateTime.UtcNow - d.UpdatedAt) < TimeSpan.FromDays(14)
+                )
+                    .Include(d => d.Car)
+                    .Include(d => d.Client)
+                    .Include(d => d.Employee)
+                    .OrderBy(d => d.CreatedAt)
+                    .ToListAsync();
+
+            if (!deals.Any())
+                return new List<ResponseDealDTO>();
+
+            var dealDto = deals.ToResponseDealDtoInList();
+
+            return dealDto;
         }
 
     }

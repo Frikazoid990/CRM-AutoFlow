@@ -27,6 +27,7 @@ namespace CRM_AutoFlow.Infrastructure.Services
         {
             var faker = new Faker("ru");
             var userDtoList = new List<UserDTO>();
+            var dealsList = new List<Deal>();
             var random = new Random();
             // Расширенные списки отчеств
             var malePatronymics = new[] {
@@ -45,7 +46,7 @@ namespace CRM_AutoFlow.Infrastructure.Services
         "Артемовна", "Васильевна", "Даниловна", "Константиновна", "Леонидовна"
     };
 
-            for (int i = 0; i < 2; i++)
+            for (int i = 0; i < 1; i++)
             {
                 // Получаем "Имя Фамилия" от Bogus
                 var bogusName = faker.Name.FullName();
@@ -91,6 +92,9 @@ namespace CRM_AutoFlow.Infrastructure.Services
                 .Where(u => u.Role == Role.SENIORMANAGER || u.Role == Role.MANAGER)
                 .ToListAsync();
 
+            //create Deals
+            var shuffled = userDtoList.OrderBy(u => Guid.NewGuid()).ToList();
+            var selectedUsersDto = shuffled.Take(2).ToList();
             foreach (var userDto in userDtoList)
             {
                 //Console.WriteLine($"fn: {userDto.FullName} | pn:{userDto.PhoneNumber} | pass:{userDto.Password}");
@@ -134,7 +138,7 @@ namespace CRM_AutoFlow.Infrastructure.Services
                         CarId = randomCar.Id,
                         Price = randomConfig.Price,
                         Status = randomStatus,
-                        IsCancelled = randomStatus != DealStatus.COMPLETED && random.Next(2) == 0, // 10% chance to be cancelled
+                        IsCancelled = randomStatus != DealStatus.COMPLETED && random.Next(20) == 0, // 10% chance to be cancelled
                         CreatedAt = createdAt,
                         UpdatedAt = updatedAt,
                         ResolvedAt = resolvedAt,
@@ -147,37 +151,178 @@ namespace CRM_AutoFlow.Infrastructure.Services
                     {
                         deal.EmployeeId = employee[random.Next(employee.Count)].Id;
                     }
-                    Console.WriteLine(deal);
                     Console.WriteLine($"""
-    ============ Информация о сделке ============
-    ID: {deal.Id}
-    Клиент: {deal.ClientId}
-    Чат: {deal.ChatId}
-    Автомобиль: {deal.CarId}
-    Сотрудник: {(deal.EmployeeId.HasValue ? deal.EmployeeId.Value.ToString() : "не назначен")}
-    Цена: {deal.Price} руб.
-    Статус: {deal.Status.GetDescription()}
-    Отменена: {(deal.IsCancelled ? "Да" : "Нет")}
-    Дата создания: {deal.CreatedAt:dd.MM.yyyy HH:mm}
-    Дата обновления: {deal.UpdatedAt:dd.MM.yyyy HH:mm}
-    Дата завершения: {(deal.ResolvedAt.HasValue ? deal.ResolvedAt.Value.ToString("dd.MM.yyyy HH:mm") : "не завершена")}
-    Комплектация: {deal.SelectedConfiguration}
-    Детали: {deal.ConfigurationDetailsJson}
-    =============================================
-    """);
+                        ============ Информация о сделке ============
+                        ID: {deal.Id}
+                        Клиент: {deal.ClientId}
+                        Чат: {deal.ChatId}
+                        Автомобиль: {deal.CarId}
+                        Сотрудник: {(deal.EmployeeId.HasValue ? deal.EmployeeId.Value.ToString() : "не назначен")}
+                        Цена: {deal.Price} руб.
+                        Статус: {deal.Status.GetDescription()}
+                        Отменена: {(deal.IsCancelled ? "Да" : "Нет")}
+                        Дата создания: {deal.CreatedAt:dd.MM.yyyy HH:mm}
+                        Дата обновления: {deal.UpdatedAt:dd.MM.yyyy HH:mm}
+                        Дата завершения: {(deal.ResolvedAt.HasValue ? deal.ResolvedAt.Value.ToString("dd.MM.yyyy HH:mm") : "не завершена")}
+                        Комплектация: {deal.SelectedConfiguration}
+                        Детали: {deal.ConfigurationDetailsJson}
+                        =============================================
+                        """);
                 }
                 else
                 {
                     Console.WriteLine("У выбранного автомобиля нет конфигураций");
                 }
-
             }
 
 
+            Console.WriteLine("==============================================================" +
+                "==============================================================" +
+                "==============================================================" +
+                "==============================================================" +
+                "==============================================================");
 
+            //create TestDrives
+            // Фиксируем текущую дату (23.06.2025)
+            var currentDate = new DateTime(2025, 6, 23);
 
+            // Словарь для хранения занятых слотов
+            var bookedSlots = new Dictionary<Guid, List<DateTime>>();
 
+            foreach (var userDto in userDtoList)
+            {
+                // Определяем случайное количество тест-драйвов для пользователя (1-4)
+                int testDriveCount = random.Next(1, 5);
 
+                Console.WriteLine($"Создаем {testDriveCount} тест-драйв(ов) для {userDto.FullName}");
+
+                for (int i = 0; i < testDriveCount; i++)
+                {
+                    var randomCar = cars[random.Next(cars.Count)];
+
+                    if (!bookedSlots.ContainsKey(randomCar.Id))
+                    {
+                        bookedSlots[randomCar.Id] = new List<DateTime>();
+                    }
+
+                    // Генерируем временные слоты (от 2 месяцев назад до 2 месяцев вперед)
+                    var startTime = new TimeSpan(9, 0, 0);
+                    var endTime = new TimeSpan(17, 30, 0);
+                    var timeSlots = new List<DateTime>();
+
+                    // Создаем слоты в диапазоне ±2 месяца от текущей даты
+                    for (int day = -60; day <= 60; day++) // -60 дней = ~2 месяца назад, +60 дней = ~2 месяца вперед
+                    {
+                        var date = currentDate.AddDays(day);
+
+                        // Пропускаем выходные (суббота и воскресенье)
+                        if (date.DayOfWeek == DayOfWeek.Saturday || date.DayOfWeek == DayOfWeek.Sunday)
+                            continue;
+
+                        // Для сегодняшней даты проверяем текущее время
+                        if (day == 0)
+                        {
+                            var now = currentDate.TimeOfDay;
+                            var start = now > startTime ? now.Add(new TimeSpan(1, 0, 0)) : startTime;
+                            startTime = new TimeSpan(start.Hours, start.Minutes / 30 * 30, 0);
+                        }
+
+                        for (var time = startTime; time <= endTime; time = time.Add(new TimeSpan(0, 30, 0)))
+                        {
+                            timeSlots.Add(date.Add(time));
+                        }
+                    }
+
+                    // Фильтруем доступные слоты
+                    var availableSlots = timeSlots
+                        .Where(slot => !bookedSlots[randomCar.Id].Any(booked =>
+                            Math.Abs((booked - slot).TotalMinutes) < 30))
+                        .ToList();
+
+                    if (!availableSlots.Any())
+                    {
+                        Console.WriteLine($"  Нет свободных слотов для {randomCar.Brand} {randomCar.Model}");
+                        continue;
+                    }
+
+                    var plannedDate = availableSlots[random.Next(availableSlots.Count)];
+                    bookedSlots[randomCar.Id].Add(plannedDate);
+
+                    // Определяем статус в зависимости от даты
+                    TestDriveStatus randomStatus;
+                    Guid? employeeId = null;
+
+                    if (plannedDate < currentDate)
+                    {
+                        // Прошедшие даты - только COMPLETED или CANCELED
+                        var statuses = new[] { TestDriveStatus.COMPLETED, TestDriveStatus.CANCELED };
+                        randomStatus = statuses[random.Next(statuses.Length)];
+
+                        // Для завершенных назначаем сотрудника
+                        if (randomStatus == TestDriveStatus.COMPLETED && employee.Any())
+                        {
+                            employeeId = employee[random.Next(employee.Count)].Id;
+                        }
+                    }
+                    else if (plannedDate.Date == currentDate.Date)
+                    {
+                        // Сегодня - может быть INITIAL или CANCELED
+                        var statuses = new[] { TestDriveStatus.INITIAL, TestDriveStatus.CANCELED };
+                        randomStatus = statuses[random.Next(statuses.Length)];
+
+                        if (randomStatus == TestDriveStatus.INITIAL && employee.Any())
+                        {
+                            employeeId = employee[random.Next(employee.Count)].Id;
+                        }
+                    }
+                    else
+                    {
+                        // Будущие даты - NOTASSIGNED или INITIAL
+                        var statuses = new[] { TestDriveStatus.NOTASSIGNED, TestDriveStatus.INITIAL };
+                        randomStatus = statuses[random.Next(statuses.Length)];
+
+                        if (randomStatus == TestDriveStatus.INITIAL && employee.Any())
+                        {
+                            employeeId = employee[random.Next(employee.Count)].Id;
+                        }
+                    }
+
+                    // Создаем тест-драйв
+                    var testDrive = new TestDrive
+                    {
+                        Id = Guid.NewGuid(),
+                        ClientId = Guid.NewGuid(),
+                        CarId = randomCar.Id,
+                        EmployeedId = employeeId,
+                        PlannedDate = plannedDate,
+                        CreatedAt = currentDate.AddDays(-random.Next(60)), // Создан до 2 месяцев назад
+                        UpdatedAt = currentDate,
+                        Status = randomStatus
+                    };
+
+                    // Корректируем UpdatedAt для завершенных/отмененных
+                    if (randomStatus == TestDriveStatus.COMPLETED || randomStatus == TestDriveStatus.CANCELED)
+                    {
+                        testDrive.UpdatedAt = plannedDate.AddMinutes(random.Next(30, 180));
+                    }
+
+                    _context.TestDrives.Add(testDrive);
+
+                    // Вывод информации
+                    Console.WriteLine($"  Тест-драйв #{i + 1}:");
+                    Console.WriteLine($"  Авто: {randomCar.Brand} {randomCar.Model}");
+                    Console.WriteLine($"  Дата: {plannedDate:dd.MM.yyyy HH:mm}");
+                    Console.WriteLine($"  Статус: {randomStatus}");
+                    Console.WriteLine($"  Сотрудник: {employeeId?.ToString() ?? "не назначен"}");
+                    Console.WriteLine("  ------------------------------");
+                }
+            }
+
+            Console.WriteLine("====================================================================================" +
+                "====================================================================================" +
+                "====================================================================================" +
+                "====================================================================================" +
+                "====================================================================================");
         }
     }
 }

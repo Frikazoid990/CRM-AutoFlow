@@ -60,7 +60,22 @@ namespace CRM_AutoFlow.Presentation.Controllers
         {
             var result = await _dealService.GetDealForCliet(clientId);
             return Ok(result);
-        } 
+        }
+        [HttpGet("get-deal-for-manager/{managerId}")]
+        public async Task<IActionResult> GetAllDealsForCurrentManager([FromRoute] Guid managerId)
+        {
+            var result = await _dealService.GetAllDealsForCurrentManager(managerId);
+            return Ok(result);
+        }
+        [HttpGet("get-deal-is-canceled")]
+        public async Task<IActionResult> GetAllDealsWithIsCanceled()
+        {
+            var result = await _dealService.GetAllIsCanceledDeal();
+            return Ok(result);
+        }
+
+
+        
 
     }
 }

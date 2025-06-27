@@ -85,7 +85,7 @@ namespace CRM_AutoFlow.Infrastructure.Services
                     td.PlannedDate < endDate)
                 .ToListAsync();
 
-            var startOfWorkDay = new TimeOnly(9, 0);
+            var startOfWorkDay = new TimeOnly(10, 0);
             var endOfWorkDay = new TimeOnly(20, 0);
             var current = startOfWorkDay;
 
@@ -105,7 +105,10 @@ namespace CRM_AutoFlow.Infrastructure.Services
 
                 if (!carConflict && staffBookings < MaxManagers)
                 {
-                    result.Add(current);
+                    if (current != new TimeOnly(13, 0) && current != new TimeOnly(13, 30))
+                    {
+                        result.Add(current);
+                    }
                 }
 
                 current = current.AddMinutes(30);
