@@ -55,10 +55,11 @@ namespace FormRegJWTAndDB.Controllers
 
             Response.Cookies.Append("access_token", result1.Data, new CookieOptions
             {
-                Secure = false,   // Передавать только по HTTPS (в продакшене)
-                SameSite = SameSiteMode.Strict, // Защита от CSRF
+                HttpOnly = false,
+                Secure = true,   // Передавать только по HTTPS (в продакшене)
                 Expires = DateTimeOffset.UtcNow.AddDays(7), // Срок действия
-                 Path = "/" // Это ключевое изменение - куки будут доступны на всех путях
+                SameSite = SameSiteMode.None,
+                Domain = "localhost",
             });
             return Ok(new { message = "Authentication successful" });
         }

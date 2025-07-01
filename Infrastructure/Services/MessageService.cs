@@ -15,7 +15,7 @@ namespace CRM_AutoFlow.Infrastructure.Services
             _context = context;
         }
         ///----
-        public async Task AddMessage(CreateMessageDto messageDto)
+        public async Task<Guid> AddMessage(CreateMessageDto messageDto)
         {
             if (messageDto.Content == null)
                 throw new ArgumentException("Empty message");
@@ -28,28 +28,23 @@ namespace CRM_AutoFlow.Infrastructure.Services
 
             _context.Messages.Add(message);
             await _context.SaveChangesAsync();
+            return(message.Id);
         }
 
         public async Task<List<ResponseMessageDTO>> GetAllMessagesForChat(int chatId)
         {
-            var chat = await _context.Chats.FindAsync(chatId);
-            if (chat == null)
-                throw new ArgumentException("Chat not found");
-            var messageList = await _context.Messages
+            return await _context.Messages
                 .Where(m => m.ChatId == chatId)
+                .OrderBy(m => m.CreatedAt)
                 .Include(m => m.Sender)
+                .Select(m => new ResponseMessageDTO
+                {
+                    Id = m.Id,
+                    Content = m.Content,
+                    Sendler = m.Sender.FullName,
+                    CreatedAt = m.CreatedAt
+                })
                 .ToListAsync();
-            if (messageList.Count == 0)
-                return new List<ResponseMessageDTO>();
-            var messageDtoList = await Task.Run(() => messageList.Select(m => new ResponseMessageDTO
-            {
-                Id = m.Id,
-                Content = m.Content,
-                Sendler = m.Sender.FullName,
-            })
-                .ToList()
-                );
-            return messageDtoList;
         }
     }
 }

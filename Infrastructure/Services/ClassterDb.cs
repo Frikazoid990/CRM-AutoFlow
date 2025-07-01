@@ -28,6 +28,8 @@ namespace CRM_AutoFlow.Infrastructure.Services
             var faker = new Faker("ru");
             var userDtoList = new List<UserDTO>();
             var dealsList = new List<Deal>();
+            var testDriveList = new List<TestDrive>();
+            var clientsListGuidId = new List<Guid>();
             var random = new Random();
             // Расширенные списки отчеств
             var malePatronymics = new[] {
@@ -45,8 +47,9 @@ namespace CRM_AutoFlow.Infrastructure.Services
         "Юрьевна", "Станиславовна", "Вадимовна", "Георгиевна", "Романовна",
         "Артемовна", "Васильевна", "Даниловна", "Константиновна", "Леонидовна"
     };
-
-            for (int i = 0; i < 1; i++)
+            //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! В ЦИКЛЕ ИСПРАВИТЬ КОЛ-ВО ЮЗЕРОВ КОТОРЫЕ ДОБАВЛЯЮТСЯ 
+            //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! СТОИТ 0
+            for (int i = 0; i < 0; i++)
             {
                 // Получаем "Имя Фамилия" от Bogus
                 var bogusName = faker.Name.FullName();
@@ -83,19 +86,26 @@ namespace CRM_AutoFlow.Infrastructure.Services
                 };
 
                 userDtoList.Add(userDto);
-
                 // Для отладки выводим в консоль
 
             }
+
+            foreach(var userDto in userDtoList)
+            {
+                var resultGuid = await _userService.AddUser(userDto);
+                clientsListGuidId.Add(resultGuid.Data);
+
+            }
+
             var cars = await _context.Cars.ToListAsync();
             var employee = await _context.Users
                 .Where(u => u.Role == Role.SENIORMANAGER || u.Role == Role.MANAGER)
                 .ToListAsync();
 
             //create Deals
-            var shuffled = userDtoList.OrderBy(u => Guid.NewGuid()).ToList();
-            var selectedUsersDto = shuffled.Take(2).ToList();
-            foreach (var userDto in userDtoList)
+            var shuffled = clientsListGuidId.OrderBy(u => Guid.NewGuid()).ToList();
+            var selectedGuid = shuffled.Take(200).ToList();
+            foreach (var clientGuid in selectedGuid)
             {
                 //Console.WriteLine($"fn: {userDto.FullName} | pn:{userDto.PhoneNumber} | pass:{userDto.Password}");
                 var randomCar = cars[random.Next(cars.Count)];
@@ -117,7 +127,7 @@ namespace CRM_AutoFlow.Infrastructure.Services
                         color = new List<object> { new { name = randomColor.Name, hex = randomColor.Hex } }
                     };
 
-                    //int ChatId = await _chatService.CreateChatAsync(ClientId); // in prodaction
+                    int ChatId = await _chatService.CreateChatAsync(clientGuid); // in prodaction
                     var statusValues = Enum.GetValues(typeof(DealStatus));
                     var randomStatus = (DealStatus)statusValues.GetValue(random.Next(statusValues.Length));
 
@@ -133,8 +143,8 @@ namespace CRM_AutoFlow.Infrastructure.Services
                     var deal = new Deal
                     {
                         Id = Guid.NewGuid(),
-                        ClientId = Guid.NewGuid(), // Здесь должен быть реальный ID клиента
-                        ChatId = random.Next(1000, 9999), // Пример случайного ChatId
+                        ClientId = clientGuid, // Здесь должен быть реальный ID клиента
+                        ChatId = ChatId, // Пример случайного ChatId
                         CarId = randomCar.Id,
                         Price = randomConfig.Price,
                         Status = randomStatus,
@@ -168,13 +178,15 @@ namespace CRM_AutoFlow.Infrastructure.Services
                         Детали: {deal.ConfigurationDetailsJson}
                         =============================================
                         """);
+                    dealsList.Add(deal);
                 }
                 else
                 {
                     Console.WriteLine("У выбранного автомобиля нет конфигураций");
                 }
             }
-
+            _context.Deals.AddRange(dealsList);
+            await _context.SaveChangesAsync();
 
             Console.WriteLine("==============================================================" +
                 "==============================================================" +
@@ -183,18 +195,18 @@ namespace CRM_AutoFlow.Infrastructure.Services
                 "==============================================================");
 
             //create TestDrives
-            // Фиксируем текущую дату (23.06.2025)
-            var currentDate = new DateTime(2025, 6, 23);
+            var currentDate = DateTime.UtcNow;
 
             // Словарь для хранения занятых слотов
             var bookedSlots = new Dictionary<Guid, List<DateTime>>();
-
-            foreach (var userDto in userDtoList)
+            var shuffled1 = clientsListGuidId.OrderBy(u => Guid.NewGuid()).ToList();
+            var selectedGuid1 = shuffled.Take(300).ToList();
+            foreach (var clientGuid in selectedGuid1)
             {
                 // Определяем случайное количество тест-драйвов для пользователя (1-4)
-                int testDriveCount = random.Next(1, 5);
+                int testDriveCount = random.Next(1, 4);
 
-                Console.WriteLine($"Создаем {testDriveCount} тест-драйв(ов) для {userDto.FullName}");
+                Console.WriteLine($"Создаем {testDriveCount} тест-драйв(ов)");
 
                 for (int i = 0; i < testDriveCount; i++)
                 {
@@ -206,28 +218,38 @@ namespace CRM_AutoFlow.Infrastructure.Services
                     }
 
                     // Генерируем временные слоты (от 2 месяцев назад до 2 месяцев вперед)
-                    var startTime = new TimeSpan(9, 0, 0);
-                    var endTime = new TimeSpan(17, 30, 0);
+                    var baseStartTime = new TimeSpan(9, 0, 0);   // Начало рабочего дня
+                    var baseEndTime = new TimeSpan(17, 30, 0);   // Конец рабочего дня
                     var timeSlots = new List<DateTime>();
 
                     // Создаем слоты в диапазоне ±2 месяца от текущей даты
-                    for (int day = -60; day <= 60; day++) // -60 дней = ~2 месяца назад, +60 дней = ~2 месяца вперед
+                    for (int day = -60; day <= 60; day++)
                     {
-                        var date = currentDate.AddDays(day);
+                        var date = currentDate.AddDays(day).Date; // Только дата без времени
+                        var currentStartTime = baseStartTime;
 
-                        // Пропускаем выходные (суббота и воскресенье)
-                        if (date.DayOfWeek == DayOfWeek.Saturday || date.DayOfWeek == DayOfWeek.Sunday)
-                            continue;
-
-                        // Для сегодняшней даты проверяем текущее время
+                        // Если это сегодняшняя дата — учитываем текущее время
                         if (day == 0)
                         {
                             var now = currentDate.TimeOfDay;
-                            var start = now > startTime ? now.Add(new TimeSpan(1, 0, 0)) : startTime;
-                            startTime = new TimeSpan(start.Hours, start.Minutes / 30 * 30, 0);
+                            if (now > baseEndTime)
+                                continue; // Сегодня уже прошло всё время
+
+                            currentStartTime = now > baseStartTime ? now : baseStartTime;
+
+                            // Округляем до 30 минут вперёд
+                            int minutes = ((currentStartTime.Minutes / 30) + 1) * 30;
+                            if (minutes >= 60)
+                            {
+                                currentStartTime = new TimeSpan(currentStartTime.Hours + 1, 0, 0);
+                            }
+                            else
+                            {
+                                currentStartTime = new TimeSpan(currentStartTime.Hours, minutes, 0);
+                            }
                         }
 
-                        for (var time = startTime; time <= endTime; time = time.Add(new TimeSpan(0, 30, 0)))
+                        for (var time = currentStartTime; time <= baseEndTime; time = time.Add(new TimeSpan(0, 30, 0)))
                         {
                             timeSlots.Add(date.Add(time));
                         }
@@ -291,7 +313,7 @@ namespace CRM_AutoFlow.Infrastructure.Services
                     var testDrive = new TestDrive
                     {
                         Id = Guid.NewGuid(),
-                        ClientId = Guid.NewGuid(),
+                        ClientId = clientGuid,
                         CarId = randomCar.Id,
                         EmployeedId = employeeId,
                         PlannedDate = plannedDate,
@@ -315,14 +337,14 @@ namespace CRM_AutoFlow.Infrastructure.Services
                     Console.WriteLine($"  Статус: {randomStatus}");
                     Console.WriteLine($"  Сотрудник: {employeeId?.ToString() ?? "не назначен"}");
                     Console.WriteLine("  ------------------------------");
+
+                    testDriveList.Add(testDrive);
                 }
             }
 
-            Console.WriteLine("====================================================================================" +
-                "====================================================================================" +
-                "====================================================================================" +
-                "====================================================================================" +
-                "====================================================================================");
+            _context.TestDrives.AddRange(testDriveList);
+            await _context.SaveChangesAsync();
+
         }
     }
 }

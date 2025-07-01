@@ -153,26 +153,58 @@ namespace CRM_AutoFlow.Infrastructure.Services
             }
         }
 
-        public async Task<List<ResponseDealDTO>> GetAllDeals()
+        public async Task<List<ResponseDealDTO>> GetAllDeals(Guid userId, string role)
         {
-            var deals = await _context.Deals
+            if (role == "MANAGER")
+            {
+                var deals = await _context.Deals
                         .Where(d =>
-            d.IsCancelled == false &&
-            d.Status == DealStatus.COMPLETED &&
-            (DateTime.UtcNow - d.UpdatedAt) < TimeSpan.FromDays(14)
-        )
+                            d.EmployeeId == userId &&
+                            d.IsCancelled == false &&
+                            (
+                                (d.Status == DealStatus.COMPLETED && (DateTime.UtcNow - d.UpdatedAt) < TimeSpan.FromDays(14)) ||
+                                d.Status != DealStatus.COMPLETED
+                            )
+                        )
+                        .Include(d => d.Car)
+                        .Include(d => d.Client)
+                        .Include(d => d.Employee)
+                        .OrderBy(d => d.CreatedAt)
+                        .ToListAsync();
+
+                if (!deals.Any())
+                    return new List<ResponseDealDTO>();
+
+                var dealDto = deals.ToResponseDealDtoInList();
+
+                return dealDto;
+            }
+            else
+            {
+                var deals = await _context.Deals
+                .Where(d =>
+                d.IsCancelled == false &&
+                        (
+                            (d.Status == DealStatus.COMPLETED && (DateTime.UtcNow - d.UpdatedAt) < TimeSpan.FromDays(14)) ||
+                            d.Status != DealStatus.COMPLETED
+                        )
+                )
                 .Include(d => d.Car)
                 .Include(d => d.Client)
                 .Include(d => d.Employee)
                 .OrderBy(d => d.CreatedAt)
                 .ToListAsync();
 
-            if (!deals.Any())
-                return new List<ResponseDealDTO>();
+                if (!deals.Any())
+                    return new List<ResponseDealDTO>();
 
-            var dealDto = deals.ToResponseDealDtoInList();
+                var dealDto = deals.ToResponseDealDtoInList();
 
-            return dealDto;
+                return dealDto;
+            }
+
+
+
         }
 
         public async Task<ResponseDealDTO> GetDealForCliet(Guid clientId)
@@ -194,6 +226,7 @@ namespace CRM_AutoFlow.Infrastructure.Services
                 Id = deal.Id,
                 CreatedAt = deal.CreatedAt,
                 IsCancelled = deal.IsCancelled,
+                ChatId = deal.ChatId,
                 Price = deal.Price,
                 SelectedOptions = new SelectedOptionsDTO
                 {
@@ -232,6 +265,9 @@ namespace CRM_AutoFlow.Infrastructure.Services
             deal.EmployeeId = emploeeId;
             deal.UpdatedAt = DateTime.UtcNow;
             deal.Status = DealStatus.NEW;
+
+            var chat = await _context.Chats.FindAsync(deal.ChatId);
+            chat.EmployeeId = emploeeId;
 
             await _context.SaveChangesAsync();
         }
@@ -283,16 +319,18 @@ namespace CRM_AutoFlow.Infrastructure.Services
         {
             var deals = await _context.Deals
                 .Where(d =>
-                d.EmployeeId == managerId &&
-                d.IsCancelled == false &&
-                d.Status == DealStatus.COMPLETED &&
-                (DateTime.UtcNow - d.UpdatedAt) < TimeSpan.FromDays(14)
+                    d.EmployeeId == managerId &&
+                    d.IsCancelled == false &&
+                    (
+                        (d.Status == DealStatus.COMPLETED && (DateTime.UtcNow - d.UpdatedAt) < TimeSpan.FromDays(14)) ||
+                        d.Status != DealStatus.COMPLETED
+                    )
                 )
-                    .Include(d => d.Car)
-                    .Include(d => d.Client)
-                    .Include(d => d.Employee)
-                    .OrderBy(d => d.CreatedAt)
-                    .ToListAsync();
+                .Include(d => d.Car)
+                .Include(d => d.Client)
+                .Include(d => d.Employee)
+                .OrderBy(d => d.CreatedAt)
+                .ToListAsync();
 
             if (!deals.Any())
                 return new List<ResponseDealDTO>();
@@ -302,5 +340,30 @@ namespace CRM_AutoFlow.Infrastructure.Services
             return dealDto;
         }
 
+        public async Task<ResponseDealDTO> GetCurrentDeal(Guid dealId)
+        {
+            var deal = await _context.Deals
+                .Where(d => d.Id == dealId)
+                .Include(d => d.Car)
+                .Include(d => d.Client)
+                .Include(d => d.Employee)
+                .FirstOrDefaultAsync();
+            if (deal == null)
+                return null;
+            var dealDto = deal.ToResponseDealDto();
+            return dealDto;
+
+        }
+
+        public async Task UpdateCurrentDealPrice(Guid dealId, decimal price)
+        {
+            var deal = await _context.Deals
+                .Where(d => d.Id == dealId)
+                .FirstOrDefaultAsync();
+            if (deal == null)
+                throw new ArgumentException("Deal not found");
+            deal.Price = price;
+            await _context.SaveChangesAsync();
+        }
     }
 }

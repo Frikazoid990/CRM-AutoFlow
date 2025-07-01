@@ -5,7 +5,7 @@ namespace CRM_AutoFlow.Domain.Interfaces
 {
     public interface ITestDrive
     {
-        Task<List<ResponseTestDriveDTO>> GetAllTestDrive();
+        Task<List<ResponseTestDriveDTO>> GetAllTestDrive(Guid userId, string role);
         Task<ResponseTestDriveDTO> GetTestDrive(Guid testDriveId);
         Task<List<ResponseTestDriveDTO>> GetTestDriveForClient(Guid clientId);
         Task<List<ResponseTestDriveDTO>> GetTestDriveForManager(Guid managerId);

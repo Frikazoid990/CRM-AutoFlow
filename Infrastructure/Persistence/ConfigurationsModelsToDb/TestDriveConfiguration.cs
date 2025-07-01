@@ -22,7 +22,6 @@ namespace CRM_AutoFlow.Infrastructure.Persistence.ConfigurationsModelsToDb
 
             builder.Property(t => t.UpdatedAt)
                 .IsRequired()
-                .ValueGeneratedOnUpdate()
                 .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
             builder.HasOne(t => t.Client)

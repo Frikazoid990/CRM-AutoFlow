@@ -6,8 +6,6 @@
         public int TestDriveInProcessCountTotal { get; set; }
         public int TestDriveCompletedCountTotal { get; set; }
         public int NewDealsCountTotal { get; set; }
-
-
-
+        public decimal TotalPrice { get; set; }
     }
 }

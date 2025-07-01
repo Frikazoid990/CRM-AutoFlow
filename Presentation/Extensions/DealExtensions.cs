@@ -17,6 +17,7 @@ namespace CRM_AutoFlow.Presentation.Extensions
                     Id = deal.Id,
                     CreatedAt = deal.CreatedAt,
                     IsCancelled = deal.IsCancelled,
+                    ChatId = deal.ChatId,
                     Price = deal.Price,
                     Status = deal.Status.GetDescription(),
                     SelectedConfiguration = deal.SelectedConfiguration,
@@ -48,6 +49,7 @@ namespace CRM_AutoFlow.Presentation.Extensions
             {
                 Id = deal.Id,
                 CreatedAt = deal.CreatedAt,
+                ChatId = deal.ChatId,
                 IsCancelled = deal.IsCancelled,
                 Price = deal.Price,
                 Status = deal.Status.GetDescription(),

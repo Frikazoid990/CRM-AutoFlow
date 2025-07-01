@@ -1,12 +1,13 @@
 ﻿using CRM_AutoFlow.Application.DTOs;
 using CRM_AutoFlow.Domain.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace CRM_AutoFlow.Presentation.Controllers
 {
     [Route("message")]
     [ApiController]
-    //[Authorize]
+    [Authorize]
     public class MessageController : Controller
     {
         private readonly IMessageService _messageService;

@@ -8,6 +8,8 @@ namespace CRM_AutoFlow.Application.DTOs
 
         public DateTime CreatedAt { get; set; }
 
+        public int ChatId { get; set; }
+
         public bool IsCancelled { get; set; }
 
         public decimal Price { get; set; }
